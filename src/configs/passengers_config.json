@@ -1,0 +1,16 @@
+{
+  "explodes": [
+    {"column": "event.DataElement.travelrecord.passengersList", "alias": "passenger"}
+  ],
+  "select": [
+    {"name": "event.DataElement.travelrecord.envelopNumber", "alias": "envelop_number"},
+    {"name": "formatted_timestamp", "alias": "formatted_timestamp"},
+    {"name": "passenger.age", "alias": "age"},
+    {"name": "passenger.category", "alias": "category"},
+    {"name": "passenger.crid", "alias": "crid"},
+    {"name": "passenger.passengerType", "alias": "passenger_type"},
+    {"name": "passenger.tattoo", "alias": "tattoo"},
+    {"name": "passenger.uci", "alias": "uci"},
+    {"name": "passenger.weight", "alias": "weight"}
+  ]
+}

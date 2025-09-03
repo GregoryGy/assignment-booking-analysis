@@ -1,0 +1,21 @@
+{
+  "explodes": [
+    {
+      "column": "event.DataElement.travelrecord.productsList",
+      "alias": "product"
+    }
+  ],
+  "select": [
+    {"name": "event.DataElement.travelrecord.envelopNumber", "alias": "envelop_number"},
+    {"name": "formatted_timestamp", "alias": "formatted_timestamp"},
+    {"name": "product.aircraftType", "alias": "aircraft_type"},
+    {"name": "product.bookingClass", "alias": "booking_class"},
+    {"name": "product.bookingStatus", "alias": "booking_status"},
+    {"name": "product.flight.operatingAirline", "alias": "operating_airline"},
+    {"name": "product.codeshareAgreement", "alias": "codeshare_agreement"},
+    {"name": "product.flight.departureDate", "alias": "departure_date"},
+    {"name": "product.flight.arrivalDate", "alias": "arrival_date"},
+    {"name": "product.flight.destinationAirport", "alias": "destination_airport"},
+    {"name": "product.flight.originAirport", "alias": "origin_airport"}
+  ]
+}

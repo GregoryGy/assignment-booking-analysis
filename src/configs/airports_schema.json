@@ -1,0 +1,16 @@
+[
+  {"name": "Airport ID", "type": "integer"},
+  {"name": "Name", "type": "string"},
+  {"name": "City", "type": "string"},
+  {"name": "Country", "type": "string"},
+  {"name": "IATA", "type": "string"},
+  {"name": "ICAO", "type": "string"},
+  {"name": "Latitude", "type": "double"},
+  {"name": "Longitude", "type": "double"},
+  {"name": "Altitude", "type": "integer"},
+  {"name": "Timezone", "type": "double"},
+  {"name": "DST", "type": "string"},
+  {"name": "Tz Database time zone", "type": "string"},
+  {"name": "Type", "type": "string"},
+  {"name": "Source", "type": "string"}
+]
