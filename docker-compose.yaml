@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  booking-analysis:
+    build: .
+    volumes:
+      - ./data:/app/data          
+      - ./artifacts:/app/artifacts 
+      - ./src/configs:/app/src/configs 
+      - ./src/.env:/app/src/.env   
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: >
+      --input /app/data/bookings/
+      --output /app/artifacts
+      --is_local True
+      --start-date 2019-01-01
+      --end-date 2019-12-31
