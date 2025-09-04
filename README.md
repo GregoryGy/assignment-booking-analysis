@@ -10,7 +10,7 @@ This project analyzes flight bookings using PySpark to produce insights such as 
 - Aggregates statistics by country, including number of adults, children, and average age
 - Outputs tables by country, day of week, and season
 
-## How to Run
+## How to Run (Standalone)
 
 1. **Install dependencies:**
    ```
@@ -26,9 +26,30 @@ This project analyzes flight bookings using PySpark to produce insights such as 
    ```
    - Use `--is_local False` for HDFS mode.
 
-## Docker Support
+## How to Run (Docker)
 
-You can run the app in a Docker container with persistent volumes for input, output, and configs. See the `Dockerfile` and `docker-compose.yml` for setup.
+1. **Build the Docker image:**
+   ```
+   docker-compose build
+   ```
+
+2. **Start the container:**
+   ```
+   docker-compose up
+   ```
+
+   - Input, output, and config directories are mounted as persistent volumes.
+   - Adjust the `command:` section in `docker-compose.yaml` to set your input/output paths and arguments.
+
+3. **Example docker-compose command:**
+   ```yaml
+   command: >
+     --input /app/data/bookings/
+     --output /app/artifacts
+     --is_local True
+     --start-date 2019-01-01
+     --end-date 2019-12-31
+   ```
 
 ## Project Structure
 
@@ -37,6 +58,8 @@ You can run the app in a Docker container with persistent volumes for input, out
 - `src/configs/` — Configuration files for schema and transformations
 - `requirements.txt` — Python dependencies
 - `.env.example` — Example environment configuration
+- `Dockerfile` — Docker build instructions
+- `docker-compose.yaml` — Docker Compose configuration
 
 ## Output
 
@@ -48,10 +71,16 @@ Results are saved as parquet files in the specified output directory or HDFS pat
 - Data files must match the format specified in configs
 - Supports scalable processing of many files in a directory or on HDFS
 
-## Example
+## Example (Standalone)
 
 ```
 python src/main_application.py --input data/bookings/ --output artifacts --is_local True --start-date 2019-01-01 --end-date 2019-12-31
+```
+
+## Example (Docker Compose)
+
+```
+docker-compose up
 ```
 
 For HDFS:
