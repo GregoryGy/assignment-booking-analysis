@@ -5,18 +5,22 @@ from dotenv import load_dotenv
 from pyspark.sql import DataFrame
 from utils.args_utils import ArgsBuilder
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import (col,
+from pyspark.sql.functions import (
+    col,
     explode,
     from_utc_timestamp,
     dayofweek,
-    when, 
-    row_number)
+    when,
+    row_number,
+    sum,
+    avg
+)
 from pyspark.sql.types import (
     StructType,
     StructField,
     StringType,
     DoubleType,
-    IntegerType
+    IntegerType,
 )
 from pyspark.sql.window import Window
 from pyspark.sql.functions import coalesce, regexp_replace, try_to_timestamp
@@ -128,7 +132,7 @@ class MainApplication:
             bronze_path = f"hdfs:///{os.getenv("BRONZE_PATH")}"
             silver_base = f"hdfs:///{os.getenv("SILVER_PATH")}"
 
-        df_bronze = self.spark.read.json(input_path)
+        df_bronze = self.spark.read.json(os.path.join(input_path, "*.json"))
         df_bronze.printSchema()
         df_bronze.createOrReplaceTempView("bronze")
         df_bronze = self.spark.sql(
@@ -178,25 +182,45 @@ class MainApplication:
         flights_with_origin = flights_df.join(
             airports_origin, flights_df["origin_airport"] == col("origin.IATA"), "left"
         )
-        flights_with_origin = flights_with_origin.withColumnRenamed("Country", "origin_country")
-        flights_with_origin = flights_with_origin.withColumnRenamed("Timezone", "origin_timezone")
-        flights_with_origin = flights_with_origin.withColumnRenamed("Airport ID", "origin_airport_id")
-        flights_with_origin = flights_with_origin.withColumnRenamed("Altitude", "origin_altitude")
-        flights_with_origin = flights_with_origin.withColumnRenamed("City", "origin_city")
+        flights_with_origin = flights_with_origin.withColumnRenamed(
+            "Country", "origin_country"
+        )
+        flights_with_origin = flights_with_origin.withColumnRenamed(
+            "Timezone", "origin_timezone"
+        )
+        flights_with_origin = flights_with_origin.withColumnRenamed(
+            "Airport ID", "origin_airport_id"
+        )
+        flights_with_origin = flights_with_origin.withColumnRenamed(
+            "Altitude", "origin_altitude"
+        )
+        flights_with_origin = flights_with_origin.withColumnRenamed(
+            "City", "origin_city"
+        )
 
         flights_with_countries = flights_with_origin.join(
             airports_dest,
             flights_with_origin["destination_airport"] == col("dest.IATA"),
             "left",
         )
-        flights_with_countries = flights_with_countries.withColumnRenamed("Country", "destination_country")
-        flights_with_countries = flights_with_countries.withColumnRenamed("Timezone", "destination_timezone")
-        flights_with_countries = flights_with_countries.withColumnRenamed("Airport ID", "destination_airport_id")
-        flights_with_countries = flights_with_countries.withColumnRenamed("Altitude", "destination_altitude")
-        flights_with_countries = flights_with_countries.withColumnRenamed("City", "destination_city")
+        flights_with_countries = flights_with_countries.withColumnRenamed(
+            "Country", "destination_country"
+        )
+        flights_with_countries = flights_with_countries.withColumnRenamed(
+            "Timezone", "destination_timezone"
+        )
+        flights_with_countries = flights_with_countries.withColumnRenamed(
+            "Airport ID", "destination_airport_id"
+        )
+        flights_with_countries = flights_with_countries.withColumnRenamed(
+            "Altitude", "destination_altitude"
+        )
+        flights_with_countries = flights_with_countries.withColumnRenamed(
+            "City", "destination_city"
+        )
 
         return flights_with_countries
-    
+
     def join_flights_passengers(self, flights_df) -> DataFrame:
         """
         Join flights DataFrame with passengers DataFrame.
@@ -220,6 +244,24 @@ class MainApplication:
             "inner",
         )
         return joined_df
+    
+    def calculate_country_stats(self, df: DataFrame) -> DataFrame:
+        """
+        Calculate and store country statistics."""
+        df = df.filter(col("age").isNotNull())
+        
+        country_stats = df.groupBy("destination_country").agg(
+            sum((col("age") >= 18).cast("int")).alias("num_adults"),
+            sum((col("age") < 18).cast("int")).alias("num_children"),
+            avg("age").alias("avg_age"),
+        )
+
+        country_stats.show()
+
+        country_stats.write.mode("overwrite").parquet(
+            os.path.join(gold_dir, "country_stats")
+        )
+
 
     def run(self):
         input_path = self.args.input
@@ -242,26 +284,28 @@ class MainApplication:
             & (col("origin_country") == "Netherlands")
         )
 
-        filtered_df = filtered_df.dropDuplicates([
-            "crid", "departure_date", "origin_airport", "destination_airport"
-        ])
-        
+        filtered_df = filtered_df.dropDuplicates(
+            ["crid", "departure_date", "origin_airport", "destination_airport"]
+        )
+
         filtered_df = filtered_df.withColumn(
             "origin_timezone",
             when(
-                (col("origin_timezone").isNull()) | (col("origin_timezone").rlike("^[0-9.]+$")),
-                "Europe/Amsterdam"
-            ).otherwise(col("origin_timezone").cast("string"))
+                (col("origin_timezone").isNull())
+                | (col("origin_timezone").rlike("^[0-9.]+$")),
+                "Europe/Amsterdam",
+            ).otherwise(col("origin_timezone").cast("string")),
         )
 
         filtered_df = filtered_df.withColumn(
             "local_datetime",
-            from_utc_timestamp(col("flights.formatted_timestamp"), col("origin_timezone"))
+            from_utc_timestamp(
+                col("flights.formatted_timestamp"), col("origin_timezone")
+            ),
         )
 
         filtered_df = filtered_df.withColumn(
-            "day_of_week",
-            dayofweek(col("local_datetime"))
+            "day_of_week", dayofweek(col("local_datetime"))
         )
 
         window_spec = Window.partitionBy(
@@ -270,14 +314,19 @@ class MainApplication:
 
         latest_status_df = filtered_df.withColumn(
             "row_num", row_number().over(window_spec)
-        ).filter(
-            (col("row_num") == 1) & (col("flights.booking_status") == "CONFIRMED")
-        )
+        ).filter((col("row_num") == 1) & (col("flights.booking_status") == "CONFIRMED"))
         output_columns = [
-            "crid", "departure_date", "origin_airport", "destination_airport",
-            "origin_country", "destination_country", "day_of_week", "local_datetime",
+            "crid",
+            "age",
+            "departure_date",
+            "origin_airport",
+            "destination_airport",
+            "origin_country",
+            "destination_country",
+            "day_of_week",
+            "local_datetime",
             col("flights.envelop_number").alias("envelop_number"),
-            col("flights.formatted_timestamp").alias("formatted_timestamp")
+            col("flights.formatted_timestamp").alias("formatted_timestamp"),
         ]
         latest_status_df = latest_status_df.select(*output_columns)
 
@@ -287,6 +336,8 @@ class MainApplication:
             gold_dir = f"hdfs:///{os.getenv('GOLD_PATH')}"
 
         latest_status_df.write.mode("overwrite").parquet(gold_dir)
+
+        self.calculate_country_stats(latest_status_df)
 
         breakpoint()
 
